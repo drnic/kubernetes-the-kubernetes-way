@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -eux
+
+ZONE=$(gcloud config get-value compute/zone)
+REGION=$(gcloud config get-value compute/region)
+
+controllers=$(gcloud compute instances list | grep controller | awk '{print $1}')
+workers=$(gcloud compute instances list | grep worker | awk '{print $1}')
+[[ -n $controllers || -n $workers ]] && {
+  gcloud -q compute instances delete --zone $ZONE $controllers $workers
+}
+
+{
+  gcloud -q compute forwarding-rules delete kubernetes-forwarding-rule \
+    --region $REGION || echo skipping...
+
+  gcloud -q compute target-pools delete kubernetes-target-pool || echo skipping...
+
+  gcloud -q compute http-health-checks delete kubernetes || echo skipping...
+
+  gcloud -q compute addresses delete kubernetes-the-kubernetes-way || echo skipping...
+}
+
+# Need to regenerate certs for future public IP
+rm -f *.{pem,csr,json,kubeconfig}
+
+gcloud -q compute firewall-rules delete \
+  kubernetes-the-kubernetes-way-allow-nginx-service \
+  kubernetes-the-kubernetes-way-allow-internal \
+  kubernetes-the-kubernetes-way-allow-external \
+  kubernetes-the-kubernetes-way-allow-health-check || echo skipping...
+
+{
+  gcloud -q compute routes delete \
+    kubernetes-route-10-200-0-0-24 \
+    kubernetes-route-10-200-1-0-24 \
+    kubernetes-route-10-200-2-0-24 || echo skipping...
+
+  gcloud -q compute networks subnets delete kubernetes || echo skipping...
+
+  gcloud -q compute networks delete kubernetes-the-kubernetes-way || echo skipping...
+}
