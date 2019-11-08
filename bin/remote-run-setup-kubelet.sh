@@ -12,6 +12,7 @@ while [ $i -lt $MASTERS ]; do
   (
   set -x
   gcloud compute scp \
+    ca.pem \
     $DIR/setup-kubelet.sh \
     ${instance}:~/
 

@@ -38,6 +38,7 @@ while [ $i -lt $MASTERS ]; do
     --image-family ubuntu-1804-lts \
     --image-project ubuntu-os-cloud \
     --machine-type n1-standard-1 \
+    --metadata pod-cidr=10.200.${i}.0/24 \
     --private-network-ip 10.240.0.1${i} \
     --scopes compute-rw,storage-ro,service-management,service-control,logging-write,monitoring \
     --subnet kubernetes \
@@ -49,6 +50,7 @@ done
 i=0
 while [ $i -lt $WORKERS ]; do
   (
+  cidr_range=$((20+i))
   set -x
   gcloud compute instances create worker-${i} \
     --async \
@@ -57,7 +59,7 @@ while [ $i -lt $WORKERS ]; do
     --image-family ubuntu-1804-lts \
     --image-project ubuntu-os-cloud \
     --machine-type n1-standard-1 \
-    --metadata pod-cidr=10.200.${i}.0/24 \
+    --metadata pod-cidr=10.200.${cidr_range}.0/24 \
     --private-network-ip 10.240.0.2${i} \
     --scopes compute-rw,storage-ro,service-management,service-control,logging-write,monitoring \
     --subnet kubernetes \
