@@ -1,9 +1,16 @@
 #!/bin/bash
 
+# TODO
+# - [x] setup nginx /healthz on each controller
+# - [ ] workers to use public-ip
+# - [ ] workers to get their POD CIDR from metadata (or passed in)
+# - [ ] networking working now?
+# - [ ] external kubeconfig -> public-ip + ca.crt
+
 set -eu
 
 MASTERS=${MASTERS:-1}
-WORKERS=${WORKERS:-1}
+WORKERS=${WORKERS:-0}
 REGION=$(gcloud config get-value compute/region)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -74,14 +81,40 @@ while [ $i -lt $WORKERS ]; do
 done
 }
 
+KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kubernetes-way \
+  --region $(gcloud config get-value compute/region) \
+  --format 'value(address)')
+
+(
+  set -x
+  gcloud compute http-health-checks create kubernetes \
+    --description "Kubernetes Health Check" \
+    --host "kubernetes.default.svc.cluster.local" \
+    --request-path "/healthz" || echo skipping...
+
+  gcloud compute firewall-rules create kubernetes-the-kubernetes-way-allow-health-check \
+    --network kubernetes-the-kubernetes-way \
+    --source-ranges 209.85.152.0/22,209.85.204.0/22,35.191.0.0/16 \
+    --allow tcp || echo skipping...
+
+  gcloud compute target-pools create kubernetes-target-pool \
+    --http-health-check kubernetes || echo skipping...
+
+  # TODO - support multiple masters
+  gcloud compute target-pools add-instances kubernetes-target-pool \
+  --instances controller-0 || echo skipping...
+
+  gcloud compute forwarding-rules create kubernetes-forwarding-rule \
+    --address "${KUBERNETES_PUBLIC_ADDRESS}" \
+    --ports 6443 \
+    --region "${REGION}" \
+    --target-pool kubernetes-target-pool || echo skipping...
+)
+
 (
   set -x
   gcloud compute instances list
 )
-
-KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kubernetes-way \
-  --region $(gcloud config get-value compute/region) \
-  --format 'value(address)')
 
 [[ -f ca.crt ]] || {
 
@@ -172,28 +205,3 @@ while [ $i -lt $WORKERS ]; do
 ((i++))
 done
 
-(
-  set -x
-  gcloud compute http-health-checks create kubernetes \
-    --description "Kubernetes Health Check" \
-    --host "kubernetes.default.svc.cluster.local" \
-    --request-path "/healthz" || echo skipping...
-
-  gcloud compute firewall-rules create kubernetes-the-kubernetes-way-allow-health-check \
-    --network kubernetes-the-kubernetes-way \
-    --source-ranges 209.85.152.0/22,209.85.204.0/22,35.191.0.0/16 \
-    --allow tcp || echo skipping...
-
-  gcloud compute target-pools create kubernetes-target-pool \
-    --http-health-check kubernetes || echo skipping...
-
-  # TODO - support multiple masters
-  gcloud compute target-pools add-instances kubernetes-target-pool \
-  --instances controller-0 || echo skipping...
-
-  gcloud compute forwarding-rules create kubernetes-forwarding-rule \
-    --address "${KUBERNETES_PUBLIC_ADDRESS}" \
-    --ports 6443 \
-    --region "${REGION}" \
-    --target-pool kubernetes-target-pool || echo skipping...
-)
