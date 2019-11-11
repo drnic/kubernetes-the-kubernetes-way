@@ -79,11 +79,13 @@ done
   gcloud compute instances list
 )
 
+[[ -n ${JUST_VMS:-} ]] && { exit 0; }
+
 KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kubernetes-way \
   --region $(gcloud config get-value compute/region) \
   --format 'value(address)')
 
-[[ -f ca-key.pem ]] || {
+[[ -f ca.crt ]] || {
 
 cat > ca-config.json <<EOF
 {
@@ -121,7 +123,8 @@ cat > ca-csr.json <<EOF
 EOF
 
 cfssl gencert -initca ca-csr.json | cfssljson -bare ca
-
+mv ca.pem ca.crt
+mv ca-key.pem ca.key
 }
 
 [[ -f admin-key.pem ]] || {
@@ -145,8 +148,8 @@ cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 EOF
 
 cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
+  -ca=ca.crt \
+  -ca-key=ca.key \
   -config=ca-config.json \
   -profile=kubernetes \
   admin-csr.json | cfssljson -bare admin
@@ -183,8 +186,8 @@ EOF
       --format 'value(networkInterfaces[0].networkIP)')
 
     cfssl gencert \
-      -ca=ca.pem \
-      -ca-key=ca-key.pem \
+      -ca=ca.crt \
+      -ca-key=ca.key \
       -config=ca-config.json \
       -hostname=${instance},${EXTERNAL_IP},${INTERNAL_IP} \
       -profile=kubernetes \
@@ -215,8 +218,8 @@ done
 EOF
 
   cfssl gencert \
-    -ca=ca.pem \
-    -ca-key=ca-key.pem \
+    -ca=ca.crt \
+    -ca-key=ca.key \
     -config=ca-config.json \
     -profile=kubernetes \
     kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
@@ -243,8 +246,8 @@ EOF
 EOF
 
   cfssl gencert \
-    -ca=ca.pem \
-    -ca-key=ca-key.pem \
+    -ca=ca.crt \
+    -ca-key=ca.key \
     -config=ca-config.json \
     -profile=kubernetes \
     kube-proxy-csr.json | cfssljson -bare kube-proxy
@@ -271,8 +274,8 @@ EOF
 EOF
 
   cfssl gencert \
-    -ca=ca.pem \
-    -ca-key=ca-key.pem \
+    -ca=ca.crt \
+    -ca-key=ca.key \
     -config=ca-config.json \
     -profile=kubernetes \
     kube-scheduler-csr.json | cfssljson -bare kube-scheduler
@@ -458,7 +461,7 @@ while [ $i -lt $MASTERS ]; do
     $DIR/setup-kubelet.sh \
     ${instance}:~/
 
-  gcloud compute ssh ${instance} -- bash setup-kubelet.sh
+  gcloud compute ssh ${instance} -- bash setup-kubelet.sh --public-ip "$KUBERNETES_PUBLIC_ADDRESS"
 
   )
   ((i++))
