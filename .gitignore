@@ -2,4 +2,6 @@
 *.pem
 *.csr
 *.json
+*.crt
+*.key
 encryption*yaml

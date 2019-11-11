@@ -1,11 +1,19 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 
-   exit 1
-fi
+while [[ $# -gt 0 ]]; do
+  case "${1:-}" in
+    --public-ip)
+      shift
+      export KUBERNETES_PUBLIC_ADDRESS=$1
+      ;;
+  esac
+  shift
+done
+
+as_root() {
+set -x
 
 ### Install packages to allow apt to use a repository over HTTPS
 apt-get update
@@ -67,10 +75,22 @@ sleep 3
 journalctl -t containerd -l --no-pager
 
 
-kubeadm config images pull
+(
+  set -x
+  kubeadm config images pull
 
-kubeadm init \
-  -v 5 \
-  --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
-  --upload-certs \
-  ${KUBERNETES_PUBLIC_ADDRESS:=--apiserver-cert-extra-sans=${KUBERNETES_PUBLIC_ADDRESS:-}}
+  cp *.{crt,pem,key} /etc/kubernetes/pki/
+
+  # TODO - only 'init' for 'controller-0'
+  kubeadm init \
+    -v 5 \
+    --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
+    --upload-certs \
+    ${KUBERNETES_PUBLIC_ADDRESS:+--apiserver-cert-extra-sans=${KUBERNETES_PUBLIC_ADDRESS:-}}
+)
+
+}
+# end as_root()
+
+AS_ROOT=$(declare -f as_root)
+sudo bash -c "$AS_ROOT; as_root"
