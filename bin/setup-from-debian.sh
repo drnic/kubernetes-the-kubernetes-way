@@ -2,17 +2,10 @@
 
 set -eu
 
-while [[ $# -gt 0 ]]; do
-  case "${1:-}" in
-    --public-ip)
-      shift
-      export KUBERNETES_PUBLIC_ADDRESS=$1
-      ;;
-  esac
-  shift
-done
+KUBERNETES_PUBLIC_ADDRESS=$(cat kube-apiserver-public-ip)
 
 as_root() {
+(
 set -x
 
 ### Install packages to allow apt to use a repository over HTTPS
@@ -69,28 +62,70 @@ cat >/etc/cni/net.d/99-loopback.conf <<EOF
 }
 EOF
 
-# Restart containerd
-systemctl restart containerd
-sleep 3
-journalctl -t containerd -l --no-pager
+  # Restart containerd
+  systemctl restart containerd
+  sleep 3
+  journalctl -t containerd -l --no-pager
 
-
-(
-  set -x
   kubeadm config images pull
 
-  cp *.{crt,pem,key} /etc/kubernetes/pki/
-
-  # TODO - only 'init' for 'controller-0'
-  kubeadm init \
-    -v 5 \
-    --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
-    --upload-certs \
-    ${KUBERNETES_PUBLIC_ADDRESS:+--apiserver-cert-extra-sans=${KUBERNETES_PUBLIC_ADDRESS:-}}
+  mkdir -p /etc/kubernetes/pki/
+  cp *.{crt,key} /etc/kubernetes/pki/
 )
 
+if [[ "$HOSTNAME" == "controller-0" ]]; then
+  echo "Configuring and starting apiserver and friends"
+  (
+    set -x
+    kubeadm init \
+      -v 5 \
+      --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
+      --upload-certs \
+      --apiserver-cert-extra-sans=${KUBERNETES_PUBLIC_ADDRESS}
+
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl get nodes
+  )
+  echo "Collecting data required for other masters/workers to join cluster:"
+
+  (
+  set -x
+  kubeadm token list | grep authentication | awk '{print $1}' > bootstrap-token-auth
+
+  openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | \
+    openssl rsa -pubin -outform der 2>/dev/null | \
+    openssl dgst -sha256 -hex | sed 's/^.* //' > \
+      discovery-token-ca-cert-hash
+
+  dig $HOSTNAME +short | head -n1 > controller-0-ip
+  )
+else
+  (
+  set -x
+  kubeadm join "$(cat controller-0-ip):6443" \
+    -v 5 \
+    --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
+    --token "$(cat bootstrap-token-auth)" \
+    --discovery-token-ca-cert-hash "sha256:$(cat discovery-token-ca-cert-hash)"
+  )
+fi
 }
 # end as_root()
 
 AS_ROOT=$(declare -f as_root)
 sudo bash -c "$AS_ROOT; as_root"
+
+[[ -f /etc/kubernetes/admin.conf ]] && {
+  echo "Create local user kubeconfig:"
+  (
+  set -x
+  sudo rm -rf $HOME/.kube
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  )
+  kubectl get nodes
+  kubectl get pods -n kube-system
+}
+
+exit 0

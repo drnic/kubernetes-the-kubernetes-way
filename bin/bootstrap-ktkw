@@ -3,7 +3,7 @@
 set -eu
 
 MASTERS=${MASTERS:-1}
-WORKERS=${WORKERS:-0}
+WORKERS=${WORKERS:-1}
 REGION=$(gcloud config get-value compute/region)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -124,29 +124,52 @@ cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 mv ca.pem ca.crt
 mv ca-key.pem ca.key
 }
-KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kubernetes-way \
-  --region "$REGION" \
-  --format 'value(address)')
 
-i=0
-while [ $i -lt $MASTERS ]; do
-  instance=controller-$i
-  (
-  set -x
+# Bootstrap controller-0 if we don't yet have the "join" files from it
+[[ -f bootstrap-token-auth ]] || {
+  instance=controller-0
   while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
     echo "waiting for ssh access to ${instance}"
     sleep 5
   done
+  (
+  set -x
+  gcloud compute addresses describe kubernetes-the-kubernetes-way \
+    --region "$REGION" \
+    --format 'value(address)' > kube-apiserver-public-ip
+
 
   gcloud compute scp \
-    ca.crt ca.key \
+    ca.crt ca.key kube-apiserver-public-ip \
     $DIR/setup-from-debian.sh \
     ${instance}:~/
 
-  gcloud compute ssh ${instance} -- ./setup-from-debian.sh --public-ip "$KUBERNETES_PUBLIC_ADDRESS"
+  gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
+  gcloud compute scp controller-0:{bootstrap-token-auth,controller-0-ip,discovery-token-ca-cert-hash} .
   )
-  ((i++))
+}
+
+# Now bootstrap + join workers
+i=0
+while [ $i -lt $WORKERS ]; do
+(
+  instance=worker-$i
+  while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
+    echo "waiting for ssh access to ${instance}"
+    sleep 5
+  done
+  set -x
+
+  gcloud compute scp \
+    kube-apiserver-public-ip \
+    bootstrap-token-auth controller-0-ip discovery-token-ca-cert-hash \
+    $DIR/setup-from-debian.sh \
+    ${instance}:~/
+
+  gcloud compute ssh ${instance} -- ./setup-from-debian.sh
+)
+((i++))
 done
 
 (

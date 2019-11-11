@@ -20,7 +20,7 @@ while [ $i -lt $MASTERS ]; do
     $DIR/setup-from-debian.sh \
     ${instance}:~/
 
-  gcloud compute ssh ${instance} -- ./setup-from-debian.sh --public-ip "$KUBERNETES_PUBLIC_ADDRESS"
+  gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
   )
   ((i++))
