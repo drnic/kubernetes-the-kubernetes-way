@@ -1,0 +1,44 @@
+#!/bin/bash
+
+[[ -f admin-key.pem ]] || {
+  cat > admin-csr.json <<EOF
+{
+  "CN": "admin",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "Portland",
+      "O": "system:masters",
+      "OU": "Kubernetes The Hard Way",
+      "ST": "Oregon"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.crt \
+  -ca-key=ca.key \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  admin-csr.json | cfssljson -bare admin
+}
+
+kubectl config set-cluster kubernetes-the-kubernetes-way \
+  --certificate-authority=ca.crt \
+  --embed-certs=true \
+  --server=https://$(cat kube-apiserver-public-ip):6443
+
+kubectl config set-credentials admin \
+  --client-certificate=admin.pem \
+  --client-key=admin-key.pem
+
+kubectl config set-context kubernetes-the-kubernetes-way \
+  --cluster=kubernetes-the-kubernetes-way \
+  --user=admin
+
+kubectl config use-context kubernetes-the-kubernetes-way
