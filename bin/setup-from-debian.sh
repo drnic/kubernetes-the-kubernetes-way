@@ -79,13 +79,22 @@ if [[ "$HOSTNAME" == "controller-0" ]]; then
       -v 5 \
       --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
       --upload-certs \
+      --pod-network-cidr=10.244.0.0/16 \
       --apiserver-cert-extra-sans="$(cat kube-apiserver-public-ip)"
 
     export KUBECONFIG=/etc/kubernetes/admin.conf
     kubectl get nodes
-  )
-  echo "Collecting data required for other masters/workers to join cluster:"
 
+  )
+  echo "Installing flannel networking"
+  # flannel networking, cni version 0.3.1, network 10.244.0.0/16
+  (
+    set -x
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/960b3243b9a7faccdfe7b3c09097105e68030ea7/Documentation/kube-flannel.yml
+  )
+
+  echo "Collecting data required for other masters/workers to join cluster:"
   (
   set -x
   kubeadm token list | grep authentication | awk '{print $1}' > bootstrap-token-auth

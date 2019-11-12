@@ -3,14 +3,15 @@
 # TODO
 # - [x] setup nginx /healthz on each controller
 # - [x] workers to use public-ip
-# - [ ] workers to get their POD CIDR from metadata (or passed in)
-# - [ ] networking working now?
+# - [x] setup flannel networking
+# - [x] networking working now?
 # - [ ] external kubeconfig -> public-ip + ca.crt
+# - [ ] GCE cloud-provider - LoadBalancer, PV/PVCs
 
 set -eu
 
 MASTERS=${MASTERS:-1}
-WORKERS=${WORKERS:-1}
+WORKERS=${WORKERS:-2}
 REGION=$(gcloud config get-value compute/region)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -25,7 +26,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
   gcloud compute firewall-rules create kubernetes-the-kubernetes-way-allow-internal \
     --allow tcp,udp,icmp \
     --network kubernetes-the-kubernetes-way \
-    --source-ranges 10.240.0.0/24,10.200.0.0/16 || echo skipping...
+    --source-ranges 10.240.0.0/24 || echo skipping...
   gcloud compute firewall-rules create kubernetes-the-kubernetes-way-allow-external \
     --allow tcp:22,tcp:6443,icmp \
     --network kubernetes-the-kubernetes-way \
@@ -45,7 +46,6 @@ while [ $i -lt $MASTERS ]; do
     --image-family ubuntu-1804-lts \
     --image-project ubuntu-os-cloud \
     --machine-type n1-standard-1 \
-    --metadata pod-cidr=10.200.${i}.0/24 \
     --private-network-ip 10.240.0.1${i} \
     --scopes compute-rw,storage-ro,service-management,service-control,logging-write,monitoring \
     --subnet kubernetes \
@@ -66,16 +66,10 @@ while [ $i -lt $WORKERS ]; do
     --image-family ubuntu-1804-lts \
     --image-project ubuntu-os-cloud \
     --machine-type n1-standard-1 \
-    --metadata pod-cidr=10.200.${cidr_range}.0/24 \
     --private-network-ip 10.240.0.2${i} \
     --scopes compute-rw,storage-ro,service-management,service-control,logging-write,monitoring \
     --subnet kubernetes \
     --tags kubernetes-the-kubernetes-way,worker || echo skipping...
-
-  gcloud compute routes create kubernetes-route-10-200-${i}-0-24 \
-    --network kubernetes-the-kubernetes-way \
-    --next-hop-address 10.240.0.2${i} \
-    --destination-range 10.200.${i}.0/24 || echo skipping...
   )
   ((i++))
 done
