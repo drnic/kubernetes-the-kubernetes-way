@@ -5,7 +5,7 @@
 # - [x] workers to use public-ip
 # - [x] setup flannel networking
 # - [x] networking working now?
-# - [ ] external kubeconfig -> public-ip + ca.crt
+# - [x] external kubeconfig -> public-ip + ca.crt
 # - [ ] GCE cloud-provider - LoadBalancer, PV/PVCs
 
 set -eu

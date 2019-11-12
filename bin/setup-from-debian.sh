@@ -3,8 +3,9 @@
 set -eu
 
 as_root() {
+  set -eu
 (
-set -x
+  set -x
 
 ### Install packages to allow apt to use a repository over HTTPS
 apt-get update
@@ -68,19 +69,40 @@ EOF
   kubeadm config images pull
 
   mkdir -p /etc/kubernetes/pki/
-  cp *.{crt,key} /etc/kubernetes/pki/
 )
 
 if [[ "$HOSTNAME" == "controller-0" ]]; then
   echo "Configuring and starting apiserver and friends"
   (
+    cat >kubeadm.yaml <<EOF
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: ClusterConfiguration
+networking:
+  podSubnet: "10.244.0.0/16"
+apiServer:
+  extraArgs:
+    cloud-provider: gce
+  certSANs:
+  - $(cat kube-apiserver-public-ip)
+controllerManager:
+  extraArgs:
+    cloud-provider: gce
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: InitConfiguration
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: gce
+EOF
+# apiserver-cert-extra-sans pod-network-cidr
     set -x
+    cp *.{crt,key} /etc/kubernetes/pki/
     kubeadm init \
       -v 5 \
+      --config=kubeadm.yaml \
       --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
-      --upload-certs \
-      --pod-network-cidr=10.244.0.0/16 \
-      --apiserver-cert-extra-sans="$(cat kube-apiserver-public-ip)"
+      --upload-certs
 
     export KUBECONFIG=/etc/kubernetes/admin.conf
     kubectl get nodes
@@ -129,12 +151,26 @@ EOF
   curl localhost/healthz -H 'Host: kubernetes.default.svc.cluster.local'
 else
   (
+    cat >kubeadm.yaml <<EOF
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: $(cat kube-apiserver-public-ip):6443
+    token: $(cat bootstrap-token-auth)
+    caCertHashes:
+    - sha256:$(cat discovery-token-ca-cert-hash)
+nodeRegistration:
+  kubeletExtraArgs:
+    cloud-provider: gce
+EOF
+# TODO - all flags must go into --config file
   set -x
-  kubeadm join "$(cat kube-apiserver-public-ip):6443" \
+  kubeadm join \
     -v 5 \
+    --config=kubeadm.yaml \
     --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
-    --token "$(cat bootstrap-token-auth)" \
-    --discovery-token-ca-cert-hash "sha256:$(cat discovery-token-ca-cert-hash)"
   )
 fi
 }
