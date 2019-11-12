@@ -2,8 +2,6 @@
 
 set -eu
 
-KUBERNETES_PUBLIC_ADDRESS=$(cat kube-apiserver-public-ip)
-
 as_root() {
 (
 set -x
@@ -81,7 +79,7 @@ if [[ "$HOSTNAME" == "controller-0" ]]; then
       -v 5 \
       --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
       --upload-certs \
-      --apiserver-cert-extra-sans=${KUBERNETES_PUBLIC_ADDRESS}
+      --apiserver-cert-extra-sans="$(cat kube-apiserver-public-ip)"
 
     export KUBECONFIG=/etc/kubernetes/admin.conf
     kubectl get nodes
@@ -118,10 +116,12 @@ EOF
 
   systemctl restart nginx
   systemctl enable nginx
+
+  curl localhost/healthz -H 'Host: kubernetes.default.svc.cluster.local'
 else
   (
   set -x
-  kubeadm join "$(cat controller-0-ip):6443" \
+  kubeadm join "$(cat kube-apiserver-public-ip):6443" \
     -v 5 \
     --ignore-preflight-errors=NumCPU,FileContent--proc-sys-net-bridge-bridge-nf-call-iptables,FileContent--proc-sys-net-ipv4-ip_forward \
     --token "$(cat bootstrap-token-auth)" \
@@ -133,6 +133,8 @@ fi
 
 AS_ROOT=$(declare -f as_root)
 sudo bash -c "$AS_ROOT; as_root"
+
+echo
 
 [[ -f /etc/kubernetes/admin.conf ]] && {
   echo "Create local user kubeconfig:"

@@ -2,7 +2,7 @@
 
 # TODO
 # - [x] setup nginx /healthz on each controller
-# - [ ] workers to use public-ip
+# - [x] workers to use public-ip
 # - [ ] workers to get their POD CIDR from metadata (or passed in)
 # - [ ] networking working now?
 # - [ ] external kubeconfig -> public-ip + ca.crt
@@ -10,7 +10,7 @@
 set -eu
 
 MASTERS=${MASTERS:-1}
-WORKERS=${WORKERS:-0}
+WORKERS=${WORKERS:-1}
 REGION=$(gcloud config get-value compute/region)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
