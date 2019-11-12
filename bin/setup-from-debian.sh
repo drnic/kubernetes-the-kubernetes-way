@@ -78,6 +78,7 @@ if [[ "$HOSTNAME" == "controller-0" ]]; then
 ---
 apiVersion: kubeadm.k8s.io/v1beta2
 kind: ClusterConfiguration
+controlPlaneEndpoint: "$(cat kube-apiserver-public-ip):6443"
 networking:
   podSubnet: "10.244.0.0/16"
 apiServer:

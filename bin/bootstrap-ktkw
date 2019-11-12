@@ -6,7 +6,10 @@
 # - [x] setup flannel networking
 # - [x] networking working now?
 # - [x] external kubeconfig -> public-ip + ca.crt
-# - [ ] GCE cloud-provider - LoadBalancer, PV/PVCs
+# - [x] GCE cloud-provider - LoadBalancer, PV/PVCs
+# - [ ] multiple controllers
+# - [x] * sudo kubeadm init --control-plane-endpoint "LOAD_BALANCER_DNS:LOAD_BALANCER_PORT" --upload-certs
+# - [ ] * kubeadm join --control-plane
 
 set -eu
 
