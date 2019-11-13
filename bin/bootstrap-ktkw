@@ -159,6 +159,19 @@ EOF
   cp ca.* etcd/
   cp ca.crt front-proxy-ca.crt
   cp ca.key front-proxy-ca.key
+
+  openssl genrsa -out sa.key 2048
+  openssl rsa -in sa.key -outform PEM -pubout -out sa.pub
+  # pki
+  # ├── ca.crt
+  # ├── ca.key
+  # ├── etcd
+  # │   ├── ca.crt
+  # │   └── ca.key
+  # ├── front-proxy-ca.crt
+  # ├── front-proxy-ca.key
+  # ├── sa.key
+  # └── sa.pub
 )
 }
 
@@ -183,21 +196,8 @@ EOF
 
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
-  gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash,/etc/kubernetes/pki/sa.*} .
-
-  mv sa.* pki/
-  # pki
-  # ├── ca.crt
-  # ├── ca.key
-  # ├── etcd
-  # │   ├── ca.crt
-  # │   └── ca.key
-  # ├── front-proxy-ca.crt
-  # ├── front-proxy-ca.key
-  # ├── sa.key
-  # └── sa.pub
-  )
-}
+  gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash} .
+)
 
 function join_node() {
   instance=$1
