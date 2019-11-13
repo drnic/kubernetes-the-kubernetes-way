@@ -221,17 +221,18 @@ function join_node() {
 i=1
 while [ $i -lt $MASTERS ]; do
   instance=controller-$i
-  join_node $instance
-  ((i++))
-done
 
-i=1
-while [ $i -lt $MASTERS ]; do
-(
-  set -x
-  gcloud compute target-pools add-instances kubernetes-target-pool \
-    --instances "controller-$i" || echo skipping...
-)
+  # controller-1 will try to uses loop back on the public IP
+  # to access the non-existent apiserver; so ensure instance is not
+  # in target-pool for public IP
+  gcloud compute target-pools remove-instances \
+    kubernetes-target-pool --instances "$instance" || echo skipping...
+
+  join_node $instance
+
+  gcloud compute target-pools add-instances \
+    kubernetes-target-pool --instances "$instance"
+
   ((i++))
 done
 
