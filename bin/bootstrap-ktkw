@@ -183,13 +183,9 @@ EOF
 
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
-  gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash,/etc/kubernetes/pki} .
+  gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash,/etc/kubernetes/pki/sa.*} .
 
-  rm pki/*client*
-  rm pki/etcd/*client*
-  rm pki/apiserver.*
-  rm pki/etcd/{peer,server}*
-  # trying to keep ca + sa.* files
+  mv sa.* pki/
   # pki
   # ├── ca.crt
   # ├── ca.key
