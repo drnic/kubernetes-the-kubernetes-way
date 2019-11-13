@@ -25,10 +25,7 @@ workers=$(gcloud compute instances list | grep worker | awk '{print $1}')
 # Need to regenerate certs for future public IP
 rm -rf pki bootstrap-token-auth discovery-token-ca-cert-hash kube-apiserver-public-ip
 
-gcloud -q compute firewall-rules delete \
-  kubernetes-the-kubernetes-way-allow-internal \
-  kubernetes-the-kubernetes-way-allow-external \
-  kubernetes-the-kubernetes-way-allow-health-check || echo skipping...
+gcloud -q compute firewall-rules delete $(gcloud compute firewall-rules list --filter=network=kubernetes-the-kubernetes-way --format="get(name)") || echo skipping...
 
 gcloud -q compute networks subnets delete kubernetes || echo skipping...
 
