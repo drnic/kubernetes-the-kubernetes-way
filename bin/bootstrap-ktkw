@@ -154,6 +154,8 @@ EOF
   mv ca.pem     pki/ca.crt
   mv ca-key.pem pki/ca.key
   cp pki/ca.* pki/etcd/
+  cp pki/ca.crt front-proxy-ca.crt
+  cp pki/ca.key front-proxy-ca.key
 }
 
 # Bootstrap controller-0 if we don't yet have the "join" files from it
@@ -178,6 +180,22 @@ EOF
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
   gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash,/etc/kubernetes/pki} .
+
+  rm pki/*client*
+  rm pki/etcd/*client*
+  rm pki/apiserver.*
+  rm pki/etcd/{peer,server}*
+  # trying to keep ca + sa.* files
+  # pki
+  # ├── ca.crt
+  # ├── ca.key
+  # ├── etcd
+  # │   ├── ca.crt
+  # │   └── ca.key
+  # ├── front-proxy-ca.crt
+  # ├── front-proxy-ca.key
+  # ├── sa.key
+  # └── sa.pub
   )
 }
 
