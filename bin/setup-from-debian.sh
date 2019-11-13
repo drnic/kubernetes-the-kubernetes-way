@@ -87,6 +87,9 @@ networking:
 apiServer:
   extraArgs:
     cloud-provider: gce
+  certSANs:
+  - controller-1
+  - controller-2
 controllerManager:
   extraArgs:
     cloud-provider: gce
@@ -120,7 +123,6 @@ EOF
   echo "Collecting data required for other masters/workers to join cluster:"
   (
   set -x
-  sudo chown $(id -u) -R /etc/kubernetes/pki/
 
   kubeadm token list | grep authentication | awk '{print $1}' > bootstrap-token-auth
 
@@ -180,8 +182,11 @@ fi
 }
 # end as_root()
 
+
 AS_ROOT=$(declare -f as_root)
 sudo bash -c "$AS_ROOT; as_root"
+
+sudo chown $(id -u) -R /etc/kubernetes
 
 echo
 

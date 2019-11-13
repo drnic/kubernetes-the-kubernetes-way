@@ -1,4 +1,5 @@
 *.kubeconfig
+pki
 *.pem
 *.csr
 *.json

@@ -113,8 +113,6 @@ KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kub
 
 [[ -f pki/ca.crt ]] || {
 
-  mkdir -p pki
-
   cat > ca-config.json <<EOF
 {
   "signing": {
@@ -151,8 +149,11 @@ EOF
 EOF
 
   cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+
+  mkdir -p pki/etcd
   mv ca.pem     pki/ca.crt
   mv ca-key.pem pki/ca.key
+  cp pki/ca.* pki/etcd/
 }
 
 # Bootstrap controller-0 if we don't yet have the "join" files from it

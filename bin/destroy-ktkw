@@ -26,7 +26,6 @@ workers=$(gcloud compute instances list | grep worker | awk '{print $1}')
 rm -f *.json *.csr *.crt *.pem *.key bootstrap-token-auth discovery-token-ca-cert-hash kube-apiserver-public-ip
 
 gcloud -q compute firewall-rules delete \
-  kubernetes-the-kubernetes-way-allow-nginx-service \
   kubernetes-the-kubernetes-way-allow-internal \
   kubernetes-the-kubernetes-way-allow-external \
   kubernetes-the-kubernetes-way-allow-health-check || echo skipping...
