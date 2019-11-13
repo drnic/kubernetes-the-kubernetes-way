@@ -87,9 +87,6 @@ networking:
 apiServer:
   extraArgs:
     cloud-provider: gce
-  certSANs:
-  - controller-1
-  - controller-2
 controllerManager:
   extraArgs:
     cloud-provider: gce

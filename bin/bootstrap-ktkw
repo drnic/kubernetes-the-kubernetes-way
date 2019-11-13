@@ -7,9 +7,9 @@
 # - [x] networking working now?
 # - [x] external kubeconfig -> public-ip + ca.crt
 # - [x] GCE cloud-provider - LoadBalancer, PV/PVCs
-# - [ ] multiple controllers
+# - [x] multiple controllers
 # - [x] * sudo kubeadm init --control-plane-endpoint "LOAD_BALANCER_DNS:LOAD_BALANCER_PORT" --upload-certs
-# - [ ] * kubeadm join --control-plane
+# - [x] * kubeadm join --control-plane
 
 set -eu
 
@@ -112,7 +112,10 @@ KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kub
 )
 
 [[ -f pki/ca.crt ]] || {
-
+(
+  rm -rf pki
+  mkdir -p pki
+  cd pki
   cat > ca-config.json <<EOF
 {
   "signing": {
@@ -150,12 +153,13 @@ EOF
 
   cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 
-  mkdir -p pki/etcd
-  mv ca.pem     pki/ca.crt
-  mv ca-key.pem pki/ca.key
-  cp pki/ca.* pki/etcd/
-  cp pki/ca.crt front-proxy-ca.crt
-  cp pki/ca.key front-proxy-ca.key
+  mkdir -p etcd
+  mv ca.pem     ca.crt
+  mv ca-key.pem ca.key
+  cp ca.* etcd/
+  cp ca.crt front-proxy-ca.crt
+  cp ca.key front-proxy-ca.key
+)
 }
 
 # Bootstrap controller-0 if we don't yet have the "join" files from it
