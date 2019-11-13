@@ -179,25 +179,28 @@ fi
 }
 # end as_root()
 
+if [[ $(systemctl status kubelet 2>&1) =~ "could not be found" ]]; then
 
-AS_ROOT=$(declare -f as_root)
-sudo bash -c "$AS_ROOT; as_root"
+  AS_ROOT=$(declare -f as_root)
+  sudo bash -c "$AS_ROOT; as_root"
 
-sudo chown $(id -u) -R /etc/kubernetes
+  sudo chown $(id -u) -R /etc/kubernetes
 
-echo
+  echo
 
-[[ -f /etc/kubernetes/admin.conf ]] && {
-  echo "Create local user admin kubeconfig:"
-  (
-  set -x
-  sudo rm -rf $HOME/.kube
-  mkdir -p $HOME/.kube
-  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-  sudo chown $(id -u):$(id -g) $HOME/.kube/config
-  )
-  kubectl get nodes
-  kubectl get pods -n kube-system
-}
-
+  [[ -f /etc/kubernetes/admin.conf ]] && {
+    echo "Create local user admin kubeconfig:"
+    (
+    set -x
+    sudo rm -rf $HOME/.kube
+    mkdir -p $HOME/.kube
+    sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    sudo chown $(id -u):$(id -g) $HOME/.kube/config
+    )
+    kubectl get nodes
+    kubectl get pods -n kube-system
+  }
+else
+  echo "[$HOSTNAME] Skipping initialization; kubelet already running"
+fi
 exit 0

@@ -175,18 +175,17 @@ EOF
 )
 }
 
-# Bootstrap controller-0 if we don't yet have the "join" files from it
-[[ -f bootstrap-token-auth ]] || {
-  instance=controller-0
-  while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
-    echo "waiting for ssh access to ${instance}"
-    sleep 5
-  done
-  (
+gcloud compute addresses describe kubernetes-the-kubernetes-way \
+  --region "$REGION" \
+  --format 'value(address)' > kube-apiserver-public-ip
+
+instance=controller-0
+while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
+  echo "waiting for ssh access to ${instance}"
+  sleep 5
+done
+(
   set -x
-  gcloud compute addresses describe kubernetes-the-kubernetes-way \
-    --region "$REGION" \
-    --format 'value(address)' > kube-apiserver-public-ip
 
   gcloud compute scp --recurse \
     pki \
