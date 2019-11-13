@@ -6,6 +6,5 @@
 *.key
 encryption*yaml
 bootstrap-token-auth
-controller-0-ip
 discovery-token-ca-cert-hash
 kube-apiserver-public-ip

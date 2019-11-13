@@ -71,6 +71,9 @@ EOF
   mkdir -p /etc/kubernetes/pki/
 )
 
+# control-plane/controllers need ca.crt/ca.key
+cp *.{crt,key} /etc/kubernetes/pki/
+
 if [[ "$HOSTNAME" == "controller-0" ]]; then
   echo "Configuring and starting apiserver and friends"
   (
@@ -84,8 +87,6 @@ networking:
 apiServer:
   extraArgs:
     cloud-provider: gce
-  certSANs:
-  - $(cat kube-apiserver-public-ip)
 controllerManager:
   extraArgs:
     cloud-provider: gce
@@ -98,7 +99,6 @@ nodeRegistration:
 EOF
 # apiserver-cert-extra-sans pod-network-cidr
     set -x
-    cp *.{crt,key} /etc/kubernetes/pki/
     kubeadm init \
       -v 5 \
       --config=kubeadm.yaml \
@@ -126,8 +126,6 @@ EOF
     openssl rsa -pubin -outform der 2>/dev/null | \
     openssl dgst -sha256 -hex | sed 's/^.* //' > \
       discovery-token-ca-cert-hash
-
-  dig $HOSTNAME +short | head -n1 > controller-0-ip
   )
 
   echo "Setup nginx for HTTPS /healthz checks"
@@ -151,7 +149,9 @@ EOF
 
   curl localhost/healthz -H 'Host: kubernetes.default.svc.cluster.local'
 else
+  # other controllers and workers
   (
+    [[ $HOSTNAME =~ ^controller ]] && { export control_plane=1; }
     cat >kubeadm.yaml <<EOF
 ---
 apiVersion: kubeadm.k8s.io/v1beta2
@@ -165,8 +165,9 @@ discovery:
 nodeRegistration:
   kubeletExtraArgs:
     cloud-provider: gce
+${control_plane:+controlPlane: {}}
 EOF
-# TODO - all flags must go into --config file
+
   set -x
   kubeadm join \
     -v 5 \
@@ -183,7 +184,7 @@ sudo bash -c "$AS_ROOT; as_root"
 echo
 
 [[ -f /etc/kubernetes/admin.conf ]] && {
-  echo "Create local user kubeconfig:"
+  echo "Create local user admin kubeconfig:"
   (
   set -x
   sudo rm -rf $HOME/.kube

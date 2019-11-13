@@ -23,7 +23,7 @@ workers=$(gcloud compute instances list | grep worker | awk '{print $1}')
 }
 
 # Need to regenerate certs for future public IP
-rm -f *.json *.crt *.pem *.key bootstrap-token-auth controller-0-ip discovery-token-ca-cert-hash kube-apiserver-public-ip
+rm -f *.json *.csr *.crt *.pem *.key bootstrap-token-auth discovery-token-ca-cert-hash kube-apiserver-public-ip
 
 gcloud -q compute firewall-rules delete \
   kubernetes-the-kubernetes-way-allow-nginx-service \

@@ -60,7 +60,6 @@ done
 i=0
 while [ $i -lt $WORKERS ]; do
   (
-  cidr_range=$((20+i))
   set -x
   gcloud compute instances create worker-${i} \
     --async \
@@ -97,19 +96,18 @@ KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kub
   gcloud compute target-pools create kubernetes-target-pool \
     --http-health-check kubernetes || echo skipping...
 
-  # TODO - support multiple masters
   gcloud compute target-pools add-instances kubernetes-target-pool \
-  --instances controller-0 || echo skipping...
+    --instances controller-0 || echo skipping...
+)
 
+(
+  set -x
   gcloud compute forwarding-rules create kubernetes-forwarding-rule \
     --address "${KUBERNETES_PUBLIC_ADDRESS}" \
     --ports 6443 \
     --region "${REGION}" \
     --target-pool kubernetes-target-pool || echo skipping...
-)
 
-(
-  set -x
   gcloud compute instances list
 )
 
@@ -168,7 +166,6 @@ mv ca-key.pem ca.key
     --region "$REGION" \
     --format 'value(address)' > kube-apiserver-public-ip
 
-
   gcloud compute scp \
     ca.crt ca.key kube-apiserver-public-ip \
     $DIR/setup-from-debian.sh \
@@ -176,15 +173,13 @@ mv ca-key.pem ca.key
 
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
 
-  gcloud compute scp controller-0:{bootstrap-token-auth,controller-0-ip,discovery-token-ca-cert-hash} .
+  gcloud compute scp controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash} .
   )
 }
 
-# Now bootstrap + join workers
-i=0
-while [ $i -lt $WORKERS ]; do
-(
-  instance=worker-$i
+function join_node() {
+  instance=$1
+  [[ $instance =~ ^controller ]] && { export control_plane=1; }
   while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
     echo "waiting for ssh access to ${instance}"
     sleep 5
@@ -193,12 +188,37 @@ while [ $i -lt $WORKERS ]; do
 
   gcloud compute scp \
     kube-apiserver-public-ip \
-    bootstrap-token-auth controller-0-ip discovery-token-ca-cert-hash \
+    ${control_plane:+ca.crt ca.key} \
+    bootstrap-token-auth discovery-token-ca-cert-hash \
     $DIR/setup-from-debian.sh \
     ${instance}:~/
 
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
+}
+
+# Bootstrap + join additional master/controllers
+i=1
+while [ $i -lt $MASTERS ]; do
+  instance=controller-$i
+  join_node $instance
+  ((i++))
+done
+
+i=1
+while [ $i -lt $MASTERS ]; do
+(
+  set -x
+  gcloud compute target-pools add-instances kubernetes-target-pool \
+    --instances "controller-$i" || echo skipping...
 )
-((i++))
+  ((i++))
+done
+
+# Bootstrap + join workers
+i=0
+while [ $i -lt $WORKERS ]; do
+  instance=worker-$i
+  join_node $instance
+  ((i++))
 done
 
