@@ -72,7 +72,7 @@ EOF
 )
 
 # control-plane/controllers need ca.crt/ca.key
-cp *.{crt,key} /etc/kubernetes/pki/
+[[ -d pki ]] && { cp -r pki/* /etc/kubernetes/pki/; }
 
 if [[ "$HOSTNAME" == "controller-0" ]]; then
   echo "Configuring and starting apiserver and friends"
@@ -120,6 +120,8 @@ EOF
   echo "Collecting data required for other masters/workers to join cluster:"
   (
   set -x
+  sudo chown $(id -u) -R /etc/kubernetes/pki/
+
   kubeadm token list | grep authentication | awk '{print $1}' > bootstrap-token-auth
 
   openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | \
