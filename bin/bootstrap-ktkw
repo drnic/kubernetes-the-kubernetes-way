@@ -19,7 +19,9 @@ REGION=$(gcloud config get-value compute/region)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-[[ -z ${SKIP_GCLOUD:-} ]] && {
+instances=$(gcloud compute instances list --filter="tags.items=kubernetes-the-kubernetes-way" --uri | wc -l | awk '{print $1}')
+
+[[ "$instances" == "0" ]] && {
 (
   set -x
   gcloud compute networks create kubernetes-the-kubernetes-way --subnet-mode custom || echo skipping...
@@ -37,6 +39,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
   gcloud compute addresses create kubernetes-the-kubernetes-way \
     --region "$REGION" || echo skipping...
 )
+}
 
 i=0
 while [ $i -lt $MASTERS ]; do
@@ -75,12 +78,12 @@ while [ $i -lt $WORKERS ]; do
   )
   ((i++))
 done
-}
 
 KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kubernetes-way \
   --region $(gcloud config get-value compute/region) \
   --format 'value(address)')
 
+[[ $(gcloud compute forwarding-rules describe kubernetes-forwarding-rule --region $REGION 2>&1) =~ "Could not fetch resource" ]] && {
 (
   set -x
   gcloud compute http-health-checks create kubernetes \
@@ -98,18 +101,17 @@ KUBERNETES_PUBLIC_ADDRESS=$(gcloud compute addresses describe kubernetes-the-kub
 
   gcloud compute target-pools add-instances kubernetes-target-pool \
     --instances controller-0 || echo skipping...
-)
 
-(
-  set -x
   gcloud compute forwarding-rules create kubernetes-forwarding-rule \
     --address "${KUBERNETES_PUBLIC_ADDRESS}" \
     --ports 6443 \
     --region "${REGION}" \
     --target-pool kubernetes-target-pool || echo skipping...
 
-  gcloud compute instances list
 )
+}
+
+gcloud compute instances list
 
 [[ -f pki/ca.crt ]] || {
 (
