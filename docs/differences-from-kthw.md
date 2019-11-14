@@ -67,12 +67,12 @@ We will only generate a shared root CA certificate/key pair, and a private/publi
 
 In KTHW we manually allocated IP addresses to each controller and worker instance, and then we manually allocated IP ranges that each worker instance could use for its pods' "internal" IP addresses.
 
-For example, worker-0 was given an IP of 10.240.0.20, and told it should only use CIDR 10.200.0.0/24 when allocating IPs to its pods. This is approximately 255 IP addresses from 10.200.0.0 to 10.200.0.254 (the first and last IPs may be reserved).
+For example, worker-0 was given an IP of 10.240.0.20, and told it should only use CIDR 10.200.0.0/24 when allocating IPs to its pods. This would grant IP addresses from 10.200.0.0 to 10.200.0.255 (though first and last IPs may be reserved). NOTE: whilst we have 200+ IP addresses for pods in a /24 CIDR, it is recommended you limit the number of pods to half this number to mitigate IP address reuse as Pods are added to and removed from a node.
 
 In KTHW, the allocated CIDR was used in configuration for [CNI networking](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md#configure-cni-networking), and configuring the [worker kubelet](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md#configure-the-kubelet).
 
-Finally, in KTHW we asked [GCE to create routing](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/11-pod-network-routes.md) from the pod IPs to their host worker instance IPs.
+Finally, in KTHW we asked [GCE to create routing](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/11-pod-network-routes.md) from the pod 10.200.X.Y IPs to their host worker instance 10.244.0.Z IPs.
 
-With kubeadm you can continue to explicitly assign CIDRs to each worker kubelet, and use GCE routing. I've not tried it -- but I assume you pass the pod CIDR into `JoinConfiguration` `nodeRegistration.kubeletExtraArgs`. We'll look at `JoinConfiguration` configuration files later.
+With kubeadm you can continue to explicitly assign CIDRs to each worker kubelet, and use GCE routing. I've not yet tried it -- but I assume you pass the pod CIDR into `JoinConfiguration`'s `nodeRegistration.kubeletExtraArgs` field. I was going to say it wasn't possible (via `kubeadm` CLI flags) but its probably possible. We'll look at `JoinConfiguration` configuration files later.
 
 Instead we will switch from GCE routing to software networking, and will try using `flannel` to allow intercommunication between pods.
