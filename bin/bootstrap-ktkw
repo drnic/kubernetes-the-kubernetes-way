@@ -201,6 +201,7 @@ done
 )
 
 function join_node() {
+(
   instance=$1
   [[ $instance =~ ^controller ]] && { export control_plane=1; }
   while [[ ! $(gcloud compute ssh ${instance} --command "hostname -s" 2>/dev/null) ]]; do
@@ -217,6 +218,7 @@ function join_node() {
     ${instance}:~/
 
   gcloud compute ssh ${instance} -- ./setup-from-debian.sh
+)
 }
 
 # Bootstrap + join additional master/controllers
