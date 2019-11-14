@@ -5,25 +5,20 @@ set -eux
 ZONE=$(gcloud config get-value compute/zone)
 REGION=$(gcloud config get-value compute/region)
 
-controllers=$(gcloud compute instances list | grep controller | awk '{print $1}')
-workers=$(gcloud compute instances list | grep worker | awk '{print $1}')
-[[ -n $controllers || -n $workers ]] && {
-  gcloud -q compute instances delete --zone $ZONE $controllers $workers
-}
-
-{
-  gcloud -q compute forwarding-rules delete kubernetes-forwarding-rule \
-    --region $REGION || echo skipping...
-
-  gcloud -q compute target-pools delete kubernetes-target-pool || echo skipping...
-
-  gcloud -q compute http-health-checks delete kubernetes || echo skipping...
-
-  gcloud -q compute addresses delete kubernetes-the-kubernetes-way || echo skipping...
-}
+instances=$(gcloud compute instances list --filter=tags.items=kubernetes-the-kubernetes-way --format="get(name)")
+[[ -z $instances ]] || { gcloud -q compute instances delete --zone $ZONE $instances; }
 
 # Need to regenerate certs for future public IP
 rm -rf pki bootstrap-token-auth discovery-token-ca-cert-hash kube-apiserver-public-ip
+
+gcloud -q compute forwarding-rules delete kubernetes-forwarding-rule \
+  --region $REGION || echo skipping...
+
+gcloud -q compute target-pools delete kubernetes-target-pool || echo skipping...
+
+gcloud -q compute http-health-checks delete kubernetes || echo skipping...
+
+gcloud -q compute addresses delete kubernetes-the-kubernetes-way || echo skipping...
 
 gcloud -q compute firewall-rules delete $(gcloud compute firewall-rules list --filter=network=kubernetes-the-kubernetes-way --format="get(name)") || echo skipping...
 
