@@ -1,13 +1,15 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
 ZONE=$(gcloud config get-value compute/zone)
 REGION=$(gcloud config get-value compute/region)
 
 instances=$(gcloud compute instances list --filter=tags.items=kubernetes-the-kubernetes-way --format="get(name)")
-[[ -z $instances ]] || { gcloud -q compute instances delete --zone $ZONE $instances; }
+[[ -z $instances ]] || { (set -x; gcloud -q compute instances delete --zone $ZONE $instances; ) }
 
+(
+set -x
 # Need to regenerate certs for future public IP
 rm -rf pki bootstrap-token-auth discovery-token-ca-cert-hash kube-apiserver-public-ip
 
@@ -27,3 +29,4 @@ gcloud -q compute networks subnets delete kubernetes || echo skipping...
 gcloud -q compute routes delete $(gcloud compute routes list | grep kubernetes-the-kubernetes-way | awk '{print $1}') || echo skipping...
 
 gcloud -q compute networks delete kubernetes-the-kubernetes-way || echo skipping...
+)
