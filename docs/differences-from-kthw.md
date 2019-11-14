@@ -59,7 +59,11 @@ In KTHW we used `cfssl` and `cfssljson` to generate a root certificate authority
 
 You now know how to do this yourself. So in this tutorial we will allow `kubeadm` to generate many of our certificates for us.
 
-We will only generate a shared root CA certificate/key pair, and a private/public key pair for service acccounts. These will be uploaded to each controller instance. Worker instances will use Kubernetes [TLS bootstrapping](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet-tls-bootstrapping/) to request their client certificates.
+### TLS bootstrapping
+
+We will only generate a shared root CA certificate/key pair, and a private/public key pair for service acccounts. These will only be uploaded to each controller instance.
+
+Worker instances will use Kubernetes [TLS bootstrapping](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet-tls-bootstrapping/) to request client certificates be created for them.
 
 ## Software networking between pods
 
