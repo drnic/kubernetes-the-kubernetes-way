@@ -4,15 +4,17 @@ The Kubernetes documentation for running Kubernetes differs from Kelsey's KTHW l
 
 ## Kubelet for Controllers and Workers
 
-KTHW ran `etcd`, `kube-apiserver`, `kube-controller-manager`, and `kube-scheduler` CLIs are systemd-managed services on each controller instances.
+In KTHW we ran `etcd`, `kube-apiserver`, `kube-controller-manager`, and `kube-scheduler` CLIs as systemd-managed services on each of the controller instances.
 
 The Kubernetes Documentation, and the `kubeadm` tool, recommend running them as static pods managed by a kubelet.
 
 That is, our controller instances will have a kubelet running on them, like our worker instances. The controller instances' kubelet will each be standalone kubelets whose purpose is to run etcd, apiserver, controller manager, scheduler, and coredns as static pods.
 
+One benefit of running services as static pods is we can later inspect them from `kubectl` and the Kubernetes API. Processes running via systemd are not viewable, nor are their logs inspectable, via Kubernetes itself.
+
 The worker instances' kubelets will be similar to KTHW: they will register with the apiserver as worker nodes for end-user pods.
 
-On the worker instances we will run kube-proxy as static pods, rather than as systemd-managed services.
+On the worker instances we will also run kube-proxy as a static pod rather than as a systemd-managed service.
 
 As such, we need to download the `kubelet` CLI to both controller and worker instances, but do not need to download etcd, kube-apiserver, kube-controller-manager, kube-scheduler, nor kube-proxy CLIs. Instead, we will download these CLIs packaged as containerd-runnable images known as Open Container Images (OCIs), or Docker Images.
 
