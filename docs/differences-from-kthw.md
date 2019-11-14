@@ -80,3 +80,9 @@ Finally, in KTHW we asked [GCE to create routing](https://github.com/kelseyhight
 With kubeadm you can continue to explicitly assign CIDRs to each worker kubelet, and use GCE routing. I've not yet tried it -- but I assume you pass the pod CIDR into `JoinConfiguration`'s `nodeRegistration.kubeletExtraArgs` field. I was going to say it wasn't possible (via `kubeadm` CLI flags) but its probably possible. We'll look at `JoinConfiguration` configuration files later.
 
 Instead we will switch from GCE routing to software networking, and will try using `flannel` to allow intercommunication between pods.
+
+## Allow API traffic via Public IP
+
+It is a nuance to be sure -- in KTHW each controller manager and scheduler on connected to the apiserver that was collocated on their same instance.
+
+We will use a public IP for all communication from internal components into the Kubernetes API (kube-apiserver).
