@@ -32,7 +32,13 @@ So that I can more easily ensure the commands in this tutorial do create working
 
 The examples below assume you have installed `gcloud` CLI, have authenticated, have created a GCE project, and have targetted the project, and a region/zone.
 
-Default 1 controller, 2 workers:
+You can provide flags to specify the number of master/controllers, workers, and the version of Kubernetes to install:
+
+```plain
+bootstrap-ktkw --kube 1.15.5 --masters 1 --workers 3
+```
+
+The default `bootstrap-ktkw` will deploy 1 controller, 2 workers, with the latest Kubernetes:
 
 ```plain
 $ bootstrap-ktkw
@@ -60,7 +66,7 @@ kube-system   pod/kube-proxy-xqpwp                       1/1     Running   0    
 3 controllers, 3 workers:
 
 ```plain
-$ MASTERS=3 WORKERS=3 bootstrap-ktkw
+$ bootstrap-ktkw --masters 3 --workers 3
 ...
 $ kubectl get nodes,pods --all-namespaces
 NAME                STATUS   ROLES    AGE   VERSION   INTERNAL-IP   EXTERNAL-IP       OS-IMAGE             KERNEL-VERSION   CONTAINER-RUNTIME

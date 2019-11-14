@@ -2,9 +2,25 @@
 
 set -eu
 
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --kube|--kube-version)
+      shift
+      echo $1 > kube_version
+      ;;
+    --containerd|--containerd-version)
+      shift
+      echo $1 > containerd_version
+      ;;
+  esac
+  shift
+done
+
 as_root() {
   set -eu
 (
+  [[ -f kube_version ]] && { export kube_version=$(cat kube_version); }
+  [[ -f containerd_version ]] && { export containerd_version=$(cat containerd_version); }
   set -x
 
 ### Install packages to allow apt to use a repository over HTTPS
@@ -28,7 +44,11 @@ EOF
 apt-get update
 
 ## Install containerd
-apt-get install -y containerd.io kubelet kubeadm kubectl
+apt install -y \
+  kubelet${kube_version:+=${kube_version}-00} \
+  kubeadm${kube_version:+=${kube_version}-00} \
+  kubectl${kube_version:+=${kube_version}-00} \
+  containerd.io${containerd_version:+=$containerd_version}
 apt-mark hold kubelet kubeadm kubectl
 
 # Configure containerd
@@ -66,7 +86,8 @@ EOF
   sleep 3
   journalctl -t containerd -l --no-pager
 
-  kubeadm config images pull
+  kubeadm config images pull \
+    ${kube_version:+--kubernetes-version $kube_version}
 
   mkdir -p /etc/kubernetes/pki/
 )
@@ -82,6 +103,7 @@ if [[ "$HOSTNAME" == "controller-0" ]]; then
 apiVersion: kubeadm.k8s.io/v1beta2
 kind: ClusterConfiguration
 controlPlaneEndpoint: "$(cat kube-apiserver-public-ip):6443"
+${kube_version:+kubernetesVersion: $kube_version}
 networking:
   podSubnet: "10.244.0.0/16"
 apiServer:

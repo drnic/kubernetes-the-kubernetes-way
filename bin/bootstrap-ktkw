@@ -13,6 +13,28 @@
 
 set -eu
 
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --master|--masters)
+      shift
+      MASTERS=$1
+      ;;
+    --worker|--workers)
+      shift
+      WORKERS=$1
+      ;;
+    --kube|--kube-version)
+      shift
+      kube_version=$1
+      ;;
+    --containerd|--containerd-version)
+      shift
+      containerd_version=$1
+      ;;
+  esac
+  shift
+done
+
 MASTERS=${MASTERS:-1}
 WORKERS=${WORKERS:-2}
 REGION=$(gcloud config get-value compute/region)
@@ -195,7 +217,10 @@ done
     $DIR/setup-from-debian.sh \
     ${instance}:~/
 
-  gcloud compute ssh ${instance} -- ./setup-from-debian.sh
+  gcloud compute ssh ${instance} -- \
+    ./setup-from-debian.sh \
+    ${kube_version:+--kube $kube_version} \
+    ${containerd_version:+--containerd $containerd_version}
 
   gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash} .
 )
@@ -220,7 +245,10 @@ function join_node() {
     $DIR/setup-from-debian.sh \
     ${instance}:~/
 
-  gcloud compute ssh ${instance} -- ./setup-from-debian.sh
+  gcloud compute ssh ${instance} -- \
+    ./setup-from-debian.sh \
+    ${kube_version:+--kube $kube_version} \
+    ${containerd_version:+--containerd $containerd_version}
 )
 }
 
