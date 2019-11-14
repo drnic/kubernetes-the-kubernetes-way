@@ -200,6 +200,9 @@ done
   gcloud compute scp --recurse controller-0:{bootstrap-token-auth,discovery-token-ca-cert-hash} .
 )
 
+
+use-ktkw
+
 function join_node() {
 (
   instance=$1
@@ -247,5 +250,3 @@ while [ $i -lt $WORKERS ]; do
   join_node $instance
   ((i++))
 done
-
-use-ktkw
