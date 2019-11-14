@@ -166,7 +166,7 @@ discovery:
 nodeRegistration:
   kubeletExtraArgs:
     cloud-provider: gce
-${control_plane:+controlPlane: \{\}}
+${control_plane:+controlPlane: {\}}
 EOF
 
   set -x
